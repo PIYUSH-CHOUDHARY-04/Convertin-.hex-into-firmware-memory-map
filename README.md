@@ -8,3 +8,7 @@ The application of this program lies in self-programming/in-application-programm
 
 This is a Command-line tool which accepts multiple .hex files via command line by their paths.
 Example usage : hex2bin file1.hex file2.hex .... fileN.hex
+
+Same program can be used to convert the .hex file for 8/16/32 bit microcontrollers, this functionality is defined into the corresponding header file where user can choose architecture specific macro.
+Note that single execution of this program can only perform conversion on same type of files i.e. all files from file1.hex to filen.hex must be .hex files for same architecture.
+Functionalities can be extended definitley which is left over to the end user.
