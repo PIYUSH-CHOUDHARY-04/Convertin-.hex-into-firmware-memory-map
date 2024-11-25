@@ -5,12 +5,6 @@ uint8_t ParsedData[RECORD_DATA_MAX_SIZE/2]={0};
 ParsedRecord RecordX={0};
 RefStruct ref={0};
 
-
-void printStruct(void){
-    printf("current record info : \n");
-    printf("data_addr : %#x\ncurr_record : %ld\nrecord_type : %d\nCheckSum : %d\ndata_len : %d\n,ptr_parsed : %p\n",RecordX.data_addr,RecordX.curr_record,RecordX.record_type,RecordX.CheckSum,RecordX.data_len,RecordX.ptr_parsed);
-}
-
 /**
  * @brief Routine to get total record count, this routine just count the Record mark, thus it's end user's responsibility to pass a valid hex file else it will just count the ':' in the file.
  * @param FILE* fptr passes the FILE* pointer of the opened .hex file.
@@ -43,8 +37,6 @@ uint64_t GetRecordCount(FILE* fptr){
  * @retval uint8_t returns the combined value of b1 and b2.
  */
 uint8_t Hextext2Byte(uint8_t b1, uint8_t b2){
-    printf("executing Hextext2Byte()...\n");
-    printf("b1 : %d | b2 : %d\n",b1,b2);
     b1-=48;
     b2-=48;
     if(b1>9){
@@ -53,7 +45,7 @@ uint8_t Hextext2Byte(uint8_t b1, uint8_t b2){
     if(b2>9){
         b2-=7;
     }
-    printf("b1 : %d | b2 : %d\n",b1,b2);
+
     return ((b1<<4)|(b2)); 
 }
 
@@ -86,7 +78,6 @@ void ARCH_16_BIT_parser(int argc, char** argv);
  */
 void ARCH_32_BIT_parser(int argc, char** argv){
     RecordX.ptr_parsed=ParsedData;
-    printf("Size of data_addr : %ld\n",sizeof(RecordX.data_addr));
 
     for(uint8_t i=0;i<argc-1;i++){
         FILE* fptr_hex=fopen(argv[i+1],"r");
@@ -111,21 +102,15 @@ void ARCH_32_BIT_parser(int argc, char** argv){
 
 
         /* reading records one by one */
-        int iter=0;
         while(fgetc(fptr_hex)==':'){
-            printf("iter : %d\n",iter);
-            iter++;
-            printf("Parsing Record %ld\n",RecordX.curr_record);
             
             uint8_t b1=(uint8_t)fgetc(fptr_hex);
             uint8_t b2=(uint8_t)fgetc(fptr_hex);
             uint8_t b3=0;
             uint8_t b4=0;
 
-            printf("b1 : %d | b2 : %d\n",b1,b2);
             RecordX.data_len=Hextext2Byte(b1, b2);     /* typecasting int to uint8_t since fgetc() returns values between 0-255 on success, on failure returns -1 which 
                                                                                                    is taken care in while() condition check. */
-            printf("RecordX.data_len : %d\n",RecordX.data_len);
             /* getting the address stored into the address field of the current record,  */
             b1=(uint8_t)fgetc(fptr_hex);
             b2=(uint8_t)fgetc(fptr_hex);
@@ -138,19 +123,15 @@ void ARCH_32_BIT_parser(int argc, char** argv){
             b4=Hextext2Byte(b1, b2);
             
             uint16_t temp_addr=( (uint16_t)b3<<8 | (uint16_t)b4 );
-            printf("temp_addr : %d\n",temp_addr);
             
             b1=(uint8_t)fgetc(fptr_hex);
             b2=(uint8_t)fgetc(fptr_hex);
             printf("b1 : %d | b2 : %d\n",b1,b2);
     
             RecordX.record_type=Hextext2Byte(b1, b2);
-           
-            printf("RecordX.record_type : %d\n",RecordX.record_type);
 
             if(RecordX.record_type == REC_TYPE_ELAR){ /* Searching for frame of record type ELAR, thus it will have a standard structure as described in the corresponding header 
                                                                                         file. */
-                printf("In if block of REC_TYPE_ELAR\n");
                 /* Since the  record is of ELAR type, thus need to fetch next 4 bytes (these 4 bytes will be of data field.) */   
                 b1=(uint8_t)fgetc(fptr_hex);
                 b2=(uint8_t)fgetc(fptr_hex);
@@ -163,7 +144,6 @@ void ARCH_32_BIT_parser(int argc, char** argv){
                 b4=Hextext2Byte(b1, b2);
                 
                 temp_addr=( (uint16_t)b3<<8 | (uint16_t)b4 );
-                printf("temp_addr : %#x\n",temp_addr);
 
                 if(ref.flag_higher == 0x00){
                     /* according to the structure of this record_type, need to fetch next 4 bytes from text file to get the higher 16 bit offset. */
@@ -182,20 +162,14 @@ void ARCH_32_BIT_parser(int argc, char** argv){
                 b2=(uint8_t)fgetc(fptr_hex);
   
                 (RecordX.CheckSum)=Hextext2Byte(b1, b2);
-                b1=fgetc(fptr_hex);
-                printf("after record char : %d %c\n",b1,b1);
-                printStruct();
+                fgetc(fptr_hex);
+                fgetc(fptr_hex);
                 (RecordX.curr_record)++;
-                
-                b1=(uint8_t)fgetc(fptr_hex);
-                printf("CHAR : %d %c\n",b1,b1);
-                printf("upper 16 : %#x | lower 16 : %#x\n",ref.first_data_addr_higher, ref.first_data_addr_lower);
                 continue;       
             }
             else
             if(RecordX.record_type == REC_TYPE_DATA){ /* getting the refrence value of offset for lower 16 bits by reading first data record.. */
                 /* Since the record is of type REC_TYPE_DATA, thus no need to fetch the next byte for now, temp_addr will be holding the lower 16 bits of 32 bit address. */
-                printf("In if block of REC_TYPE_DATA\n");
                 if(ref.flag_lower == 0x00){
                     ref.first_data_addr_lower=temp_addr;
                     ref.flag_lower=0x01;
@@ -210,7 +184,7 @@ void ARCH_32_BIT_parser(int argc, char** argv){
                     b2=(uint8_t)fgetc(fptr_hex);
                     (RecordX.ptr_parsed)[k]=Hextext2Byte(b1, b2);
                 }  
-                /* Now parsing checksum and eating up the enter character. */
+                /* Now parsing checksum and eating up the enter character and carriage return character. */
                 b1=(uint8_t)fgetc(fptr_hex);
                 b2=(uint8_t)fgetc(fptr_hex);
 
@@ -221,22 +195,15 @@ void ARCH_32_BIT_parser(int argc, char** argv){
                    the data will be written from 0th byte and its programmer's responsibility to flash the firmware at required address according to the underlying micro-controller's data sheet. */
                 /* But we atleast need to write the data in memory w.r.t initial refrence offset in orde to have correct firmware layout in the resultant .bin file. */
                 /* Writing the memory map   */
-                printf("Writing the memory map of the firmware.\n");
+
                 long diff=(RecordX.data_addr) - (((uint32_t)(ref.first_data_addr_higher)<<16)|(uint32_t)(ref.first_data_addr_lower));
-                printf("OFFSET_DIFF : %ld \n",diff);
                 fseek(fptr_bin, diff, SEEK_SET);
-                fwrite(RecordX.ptr_parsed, sizeof(uint8_t), RecordX.data_len, fptr_bin);
-                printStruct();                
+                fwrite(RecordX.ptr_parsed, sizeof(uint8_t), RecordX.data_len, fptr_bin);            
                 (RecordX.curr_record)++;
-                printf("upper 16 : %#x | lower 16 : %#x\n",ref.first_data_addr_higher, ref.first_data_addr_lower);
-                
-                
-                
             }
             else
             if(RecordX.record_type == REC_TYPE_EOF){
                 /* This type of record doesn't stores any information about data and address of the data but only tells that the records are over in the current hex file. */
-                printf("In if block of REC_TYPE_EOF\n");
                 RecordX.data_addr=0x00; /* marking the entire field as 0 since entire file has been parsed */                
                 /* getting checksum */
                 b1=(uint8_t)fgetc(fptr_hex);
@@ -244,25 +211,18 @@ void ARCH_32_BIT_parser(int argc, char** argv){
 
                 RecordX.CheckSum=Hextext2Byte(b1, b2);
                 /* Exiting while loop */
-                printStruct();
                 (RecordX.curr_record)++;
-                printf("upper 16 : %#x | lower 16 : %#x\n",ref.first_data_addr_higher, ref.first_data_addr_lower);
-                
-                
                 break;
             }
             else{
                 /* Need to skip that record since we just need the final firmware layout, other records may just set the IP/PC to specific value after bootime firmware update. */
                 /* Eating up all the chars until '\n' is not encountered */
-                printf("In if block of REC_TYPE_remaining\n");
                 do{
                     fgetc(fptr_hex);
                 }while(fgetc(fptr_hex)!='\n');
                 fgetc(fptr_hex);
-                printStruct();
+
                 (RecordX.curr_record)++;
-                printf("upper 16 : %#x | lower 16 : %#x\n",ref.first_data_addr_higher, ref.first_data_addr_lower);
-                
             }
         
         }
