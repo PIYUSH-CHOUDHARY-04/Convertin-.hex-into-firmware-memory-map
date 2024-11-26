@@ -83,6 +83,7 @@ void ARCH_32_BIT_parser(int argc, char** argv){
         FILE* fptr_hex=fopen(argv[i+1],"r");
         if(fptr_hex==NULL){
             printf("Unable to open file : %s\nCheck whether the file name you passed exists\n",argv[i+1]);
+            return;
         }
 
         int file_name_len=strlen(argv[i+1]);
